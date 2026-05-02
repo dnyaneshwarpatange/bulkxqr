@@ -1,86 +1,23 @@
-# ============================================================
-#  QRForge — Scheduled Maintenance Tasks
-#  Runs on the VPS without a redeploy:
-#    - Daily DB backup to Azure Blob Storage
-#    - Nightly cleanup of orphaned QR records older than 90 days
-#    - Weekly dependency audit
-# ============================================================
-
-name: 🔧 Maintenance
+name: Maintenance
 
 on:
   schedule:
-    - cron: "0 2 * * *"     # daily 02:00 UTC — DB backup + cleanup
-    - cron: "0 3 * * 0"     # weekly Sunday 03:00 UTC — dep audit
+    - cron: "0 2 * * *"
+    - cron: "0 3 * * 0"
   workflow_dispatch:
     inputs:
       task:
-        description: "Task to run manually"
+        description: "Task to run"
         required: true
         type: choice
         options:
-          - db-backup
           - db-cleanup
           - dep-audit
           - all
 
-env:
-  DEPLOY_USER: ${{ secrets.AZURE_VPS_USER }}
-  APP_DIR: "/var/www/qrforge"
-
 jobs:
-# ──── Daily: DB backup ────────────────────────────────────────
-  db-backup:
-    name: 💾 DB Backup → Azure Blob
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' &&
-       (inputs.task == 'db-backup' || inputs.task == 'all'))
-
-    steps:
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.AZURE_VPS_SSH_KEY }}
-
-      - name: Add VPS to known_hosts
-        run: |
-          ssh-keyscan -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
-            -H ${{ secrets.AZURE_VPS_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Run pg_dump on VPS and upload to Azure Blob
-        run: |
-          ssh -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
-            ${{ env.DEPLOY_USER }}@${{ secrets.AZURE_VPS_HOST }} \
-            'bash -s' << 'REMOTE_EOF'
-            set -e
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BACKUP_FILE="/tmp/qrforge_${TIMESTAMP}.sql.gz"
-
-            echo "=== Dumping database ==="
-            source ${{ env.APP_DIR }}/.env.production
-            pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
-
-            echo "=== Uploading to Azure Blob Storage ==="
-            az storage blob upload \
-              --account-name "${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
-              --account-key  "${{ secrets.AZURE_STORAGE_KEY }}" \
-              --container-name "qrforge-backups" \
-              --name "db/${TIMESTAMP}.sql.gz" \
-              --file "$BACKUP_FILE" \
-              --overwrite
-
-            # Keep only last 30 days locally
-            find /tmp -name "qrforge_*.sql.gz" -mtime +1 -delete
-            rm -f "$BACKUP_FILE"
-
-            echo "✅ Backup uploaded: db/${TIMESTAMP}.sql.gz"
-          REMOTE_EOF
-
-# ──── Daily: cleanup stale data ───────────────────────────────
   db-cleanup:
-    name: 🧹 Cleanup Stale QR Records
+    name: Cleanup Stale Records
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'schedule' ||
@@ -88,48 +25,30 @@ jobs:
        (inputs.task == 'db-cleanup' || inputs.task == 'all'))
 
     steps:
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.AZURE_VPS_SSH_KEY }}
-
-      - name: Add VPS to known_hosts
+      - name: Setup SSH
         run: |
-          ssh-keyscan -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
-            -H ${{ secrets.AZURE_VPS_HOST }} >> ~/.ssh/known_hosts
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AZURE_VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AZURE_VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Run cleanup query
+      - name: Run cleanup on VPS
         run: |
-          ssh -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
-            ${{ env.DEPLOY_USER }}@${{ secrets.AZURE_VPS_HOST }} \
-            'bash -s' << 'REMOTE_EOF'
+          ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
             set -e
-            source ${{ env.APP_DIR }}/.env.production
+            source /var/www/qrforge/.env
 
-            echo "=== Deleting QR codes older than 90 days for free-plan users ==="
-            psql "$DATABASE_URL" << SQL
-              DELETE FROM "QRCode"
-              WHERE "createdAt" < NOW() - INTERVAL '90 days'
-                AND "userId" IN (
-                  SELECT "userId" FROM "Subscription" WHERE plan = 'free'
-                );
-SQL
+            echo "=== Deleting QR codes older than 90 days for free users ==="
+            psql "$DATABASE_URL" -c "DELETE FROM \"QRCode\" WHERE \"createdAt\" < NOW() - INTERVAL '90 days' AND \"userId\" IN (SELECT \"userId\" FROM \"Subscription\" WHERE plan = 'free');"
 
-            echo "=== Expiring unused coupons ==="
-            psql "$DATABASE_URL" << SQL
-              UPDATE "DiscountCoupon"
-              SET "isActive" = false
-              WHERE "expiresAt" IS NOT NULL
-                AND "expiresAt" < NOW()
-                AND "isActive" = true;
-SQL
+            echo "=== Expiring old coupons ==="
+            psql "$DATABASE_URL" -c "UPDATE \"DiscountCoupon\" SET \"isActive\" = false WHERE \"expiresAt\" IS NOT NULL AND \"expiresAt\" < NOW() AND \"isActive\" = true;"
 
             echo "✅ Cleanup complete"
-          REMOTE_EOF
+          ENDSSH
 
-# ──── Weekly: dependency audit ────────────────────────────────
   dep-audit:
-    name: 🔍 Dependency Audit
+    name: Dependency Audit
     runs-on: ubuntu-latest
     if: |
       github.event.schedule == '0 3 * * 0' ||
@@ -151,5 +70,5 @@ SQL
         run: npm audit --audit-level=high
         continue-on-error: true
 
-      - name: Check for outdated packages
+      - name: Check outdated
         run: npm outdated || true
