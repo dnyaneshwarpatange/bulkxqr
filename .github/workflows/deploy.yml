@@ -50,99 +50,141 @@ jobs:
           chmod 600 "$HOME/.ssh/id_rsa"
 
           HOST="${{ secrets.AZURE_VPS_HOST }}"
-
-          echo "Attempting to fetch SSH host key (up to 3 tries)..."
-          for i in 1 2 3; do
-            if ssh-keyscan -4 -T 10 -t ed25519,rsa "$HOST" >> "$HOME/.ssh/known_hosts" 2>/dev/null; then
-              echo "✓ SSH host key fetched successfully"
-              break
-            fi
-            if [ $i -lt 3 ]; then
-              echo "Attempt $i failed, retrying in 5 seconds..."
-              sleep 5
-            else
-              echo "Warning: Could not fetch SSH host key after 3 attempts"
-              echo "Configuring SSH for passwordless connection"
-              cat >> "$HOME/.ssh/config" << EOF
+          
+          echo "Configuring SSH client..."
+          cat > "$HOME/.ssh/config" << EOF
           Host $HOST
             StrictHostKeyChecking accept-new
             UserKnownHostsFile=/dev/null
             IdentityFile=$HOME/.ssh/id_rsa
             IdentitiesOnly yes
             BatchMode yes
-            ConnectTimeout 10
+            ConnectTimeout 60
+            ServerAliveInterval 30
+            ServerAliveCountMax 3
           EOF
-              chmod 600 "$HOME/.ssh/config"
-            fi
-          done
+          chmod 600 "$HOME/.ssh/config"
+          
+          echo "SSH config ready"
 
       - name: Prepare VPS directory
+        shell: bash
         run: |
-          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'SETUP'
-          set -e
-          echo "Creating app directory..."
-          sudo mkdir -p /var/www/qrforge
-          sudo chown "$USER:$USER" /var/www/qrforge
+          HOST_ADDR="${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}"
           
-          echo "Configuring sudoers for passwordless commands..."
-          echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/chown, /bin/npm, /bin/apt-get, /usr/bin/npm, /usr/local/bin/pm2" | sudo tee /etc/sudoers.d/qrforge > /dev/null
-          sudo chmod 0440 /etc/sudoers.d/qrforge
-          
-          echo "✓ VPS directory prepared"
-          SETUP
+          echo "Preparing VPS directory..."
+          for i in {1..5}; do
+            echo "Attempt $i..."
+            if ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"; then
+              echo "✓ VPS directory prepared"
+              exit 0
+            fi
+            if [ $i -lt 5 ]; then
+              echo "Failed, waiting 10s before retry..."
+              sleep 10
+            fi
+          done
+          echo "Failed to prepare VPS directory after 5 attempts"
+          exit 1
 
       - name: Sync built app to VPS
+        shell: bash
         run: |
-          rsync -az --delete \
-            -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i $HOME/.ssh/id_rsa" \
-            --exclude='.git' \
-            --exclude='.github' \
-            ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/"
+          echo "Syncing code to VPS..."
+          for i in {1..3}; do
+            echo "Sync attempt $i..."
+            if rsync -az --delete \
+              -e "ssh -i $HOME/.ssh/id_rsa" \
+              --exclude='.git' \
+              --exclude='.github' \
+              ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/"; then
+              echo "✓ Code synced successfully"
+              exit 0
+            fi
+            if [ $i -lt 3 ]; then
+              echo "Sync failed, retrying in 5s..."
+              sleep 5
+            fi
+          done
+          echo "Failed to sync code after 3 attempts"
+          exit 1
 
       - name: Start app on VPS
+        shell: bash
         run: |
-          timeout 120 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
-            set -e
-            cd /var/www/qrforge
-            echo "Checking Node.js..."
-            if ! command -v node >/dev/null 2>&1; then
-              echo "Installing Node.js 20..."
-              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-            
-            echo "Installing PM2 globally..."
-            if ! command -v pm2 >/dev/null 2>&1; then
-              sudo npm install -g pm2 --legacy-peer-deps
-            fi
-            
-            echo "Installing app dependencies..."
-            npm ci --legacy-peer-deps
-            
-            echo "Running database migrations..."
-            npx prisma migrate deploy || true
-            
-            echo "Starting application..."
-            if pm2 show qrforge >/dev/null 2>&1; then
-              pm2 reload qrforge --update-env
-            else
-              pm2 start npm --name qrforge -- start
-              pm2 save
-              sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
-            fi
+          echo "Starting application on VPS..."
+          for attempt in {1..3}; do
+            echo "Start attempt $attempt..."
+            if ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+          set -e
+          cd /var/www/qrforge
+          echo "Checking Node.js..."
+          if ! command -v node >/dev/null 2>&1; then
+            echo "Installing Node.js 20..."
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+          fi
+          
+          echo "Installing PM2 globally..."
+          if ! command -v pm2 >/dev/null 2>&1; then
+            sudo npm install -g pm2 --legacy-peer-deps
+          fi
+          
+          echo "Installing app dependencies..."
+          npm ci --legacy-peer-deps
+          
+          echo "Running database migrations..."
+          npx prisma migrate deploy || true
+          
+          echo "Starting application..."
+          if pm2 show qrforge >/dev/null 2>&1; then
+            pm2 reload qrforge --update-env
+          else
+            pm2 start npm --name qrforge -- start
+            pm2 save
+            sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
+          fi
 
-            echo "✅ App running on port 3000"
+          echo "✅ App running on port 3000"
           ENDSSH
+            then
+              echo "✓ Application started successfully"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Start failed, waiting 15s before retry..."
+              sleep 15
+            fi
+          done
+          echo "Failed to start app after 3 attempts"
+          exit 1
 
       - name: Open port 80 → 3000
+        shell: bash
         run: |
-          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
-            set -euxo pipefail
-
-            if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
-              sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
-              sudo iptables -t nat -A OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 3000
-              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent
-              sudo netfilter-persistent save
-            fi
+          echo "Configuring port forwarding..."
+          for i in {1..3}; do
+            echo "Attempt $i..."
+            if ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+          set -e
+          
+          if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
+            echo "Setting up iptables port forwarding..."
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
+            sudo iptables -t nat -A OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 3000
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent
+            sudo netfilter-persistent save
+          fi
+          
+          echo "✓ Port forwarding configured"
           ENDSSH
+            then
+              echo "✓ Port forwarding configured successfully"
+              exit 0
+            fi
+            if [ $i -lt 3 ]; then
+              echo "Failed, retrying..."
+              sleep 5
+            fi
+          done
+          echo "Warning: Port forwarding configuration failed, but deployment may still work"
