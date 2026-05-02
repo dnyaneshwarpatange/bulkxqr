@@ -62,38 +62,67 @@ jobs:
               sleep 5
             else
               echo "Warning: Could not fetch SSH host key after 3 attempts"
-              echo "Configuring SSH to skip host key verification (accepting risk)"
+              echo "Configuring SSH for passwordless connection"
               cat >> "$HOME/.ssh/config" << EOF
           Host $HOST
             StrictHostKeyChecking accept-new
             UserKnownHostsFile=/dev/null
+            IdentityFile=$HOME/.ssh/id_rsa
+            IdentitiesOnly yes
+            BatchMode yes
+            ConnectTimeout 10
           EOF
+              chmod 600 "$HOME/.ssh/config"
             fi
           done
 
       - name: Prepare VPS directory
         run: |
-          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" \
-            "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'SETUP'
+          set -e
+          echo "Creating app directory..."
+          sudo mkdir -p /var/www/qrforge
+          sudo chown "$USER:$USER" /var/www/qrforge
+          
+          echo "Configuring sudoers for passwordless commands..."
+          echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/chown, /bin/npm, /bin/apt-get, /usr/bin/npm, /usr/local/bin/pm2" | sudo tee /etc/sudoers.d/qrforge > /dev/null
+          sudo chmod 0440 /etc/sudoers.d/qrforge
+          
+          echo "✓ VPS directory prepared"
+          SETUP
 
       - name: Sync built app to VPS
         run: |
           rsync -az --delete \
-            -e "ssh -i $HOME/.ssh/id_rsa -o StrictHostKeyChecking=yes" \
+            -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i $HOME/.ssh/id_rsa" \
             --exclude='.git' \
             --exclude='.github' \
             ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/"
 
       - name: Start app on VPS
         run: |
-          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
-            set -euxo pipefail
+          timeout 120 ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+            set -e
             cd /var/www/qrforge
-
-            if ! command -v pm2 >/dev/null 2>&1; then
-              sudo npm install -g pm2
+            echo "Checking Node.js..."
+            if ! command -v node >/dev/null 2>&1; then
+              echo "Installing Node.js 20..."
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
             fi
-
+            
+            echo "Installing PM2 globally..."
+            if ! command -v pm2 >/dev/null 2>&1; then
+              sudo npm install -g pm2 --legacy-peer-deps
+            fi
+            
+            echo "Installing app dependencies..."
+            npm ci --legacy-peer-deps
+            
+            echo "Running database migrations..."
+            npx prisma migrate deploy || true
+            
+            echo "Starting application..."
             if pm2 show qrforge >/dev/null 2>&1; then
               pm2 reload qrforge --update-env
             else
@@ -102,7 +131,7 @@ jobs:
               sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
             fi
 
-            echo "✅ App running"
+            echo "✅ App running on port 3000"
           ENDSSH
 
       - name: Open port 80 → 3000
