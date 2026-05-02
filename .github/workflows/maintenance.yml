@@ -28,21 +28,47 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.AZURE_VPS_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Run cleanup on VPS
         run: |
-          ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
-            set -e
-            source /var/www/qrforge/.env
+          ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+            set -euo pipefail
+            cd /var/www/qrforge
+
+            if ! command -v psql >/dev/null 2>&1; then
+              sudo apt-get update -y
+              sudo apt-get install -y postgresql-client
+            fi
+
+            if [ ! -f .env ]; then
+              echo ".env not found" >&2
+              exit 1
+            fi
+
+            set -a
+            . ./.env
+            set +a
 
             echo "=== Deleting QR codes older than 90 days for free users ==="
-            psql "$DATABASE_URL" -c "DELETE FROM \"QRCode\" WHERE \"createdAt\" < NOW() - INTERVAL '90 days' AND \"userId\" IN (SELECT \"userId\" FROM \"Subscription\" WHERE plan = 'free');"
+            psql "$DATABASE_URL" -c "
+              DELETE FROM \"QRCode\"
+              WHERE \"createdAt\" < NOW() - INTERVAL '90 days'
+                AND \"userId\" IN (
+                  SELECT \"userId\" FROM \"Subscription\" WHERE plan = 'free'
+                );
+            "
 
             echo "=== Expiring old coupons ==="
-            psql "$DATABASE_URL" -c "UPDATE \"DiscountCoupon\" SET \"isActive\" = false WHERE \"expiresAt\" IS NOT NULL AND \"expiresAt\" < NOW() AND \"isActive\" = true;"
+            psql "$DATABASE_URL" -c "
+              UPDATE \"DiscountCoupon\"
+              SET \"isActive\" = false
+              WHERE \"expiresAt\" IS NOT NULL
+                AND \"expiresAt\" < NOW()
+                AND \"isActive\" = true;
+            "
 
             echo "✅ Cleanup complete"
           ENDSSH
@@ -51,7 +77,7 @@ jobs:
     name: Dependency Audit
     runs-on: ubuntu-latest
     if: |
-      github.event.schedule == '0 3 * * 0' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
       (github.event_name == 'workflow_dispatch' &&
        (inputs.task == 'dep-audit' || inputs.task == 'all'))
 
