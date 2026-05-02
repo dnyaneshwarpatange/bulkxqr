@@ -35,19 +35,17 @@ jobs:
 
       - name: Write .env for VPS
         run: |
-          cat > .env <<EOF
-DATABASE_URL=${{ secrets.DATABASE_URL }}
-NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}
-GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
-NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}
-NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}
-NODE_ENV=production
-PORT=3000
-EOF
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+    echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env
+    echo "NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}" >> .env
+    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+    echo "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" >> .env
+    echo "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >> .env
+    echo "NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}" >> .env
+    echo "NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}" >> .env
+    echo "NODE_ENV=production" >> .env
+    echo "PORT=3000" >> .env
 
       - name: Setup SSH
         run: |
