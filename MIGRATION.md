@@ -1,4 +1,4 @@
-# Migration Guide - QRForge v2 Updates
+# Migration Guide - BulkXQR v2 Updates
 
 This document outlines all the changes and how to migrate from the previous version.
 
@@ -42,7 +42,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
-SMTP_FROM=QRForge <noreply@qrforge.app>
+SMTP_FROM=BulkXQR <noreply@BulkXQR.app>
 SMTP_TLS_REJECT_UNAUTHORIZED=true
 
 # Payment (existing)
@@ -173,7 +173,7 @@ DATABASE_URL=postgresql://...
 
 2. **Pull the new code**
    ```bash
-   cd qrforge-v2
+   cd BulkXQR-v2
    ```
 
 3. **Install dependencies**
@@ -192,7 +192,7 @@ DATABASE_URL=postgresql://...
    npm run build
    npm start
    # OR with PM2:
-   pm2 restart qrforge
+   pm2 restart BulkXQR
    ```
 
 6. **Configure SMTP (Admin Panel)**
@@ -230,7 +230,7 @@ If you need to rollback:
 ## Support
 
 If you encounter issues:
-1. Check console logs: `pm2 logs qrforge`
+1. Check console logs: `pm2 logs BulkXQR`
 2. Check database connection
 3. Verify SMTP configuration
 4. Review the CHANGES.md file for detailed technical changes

@@ -40,7 +40,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <QrCode size={18} className="text-white" />
           </div>
           <div>
-            <span className="text-lg font-bold text-white">QRForge</span>
+            <span className="text-lg font-bold text-white">BulkXQR</span>
             <div className="flex items-center gap-1 mt-0.5">
               <Crown size={10} style={{ color: PLAN_COLORS[plan] }} />
               <span className="text-xs font-medium capitalize" style={{ color: PLAN_COLORS[plan] }}>{plan} Plan</span>

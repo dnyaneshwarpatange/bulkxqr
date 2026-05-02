@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS "SmtpConfig" (
     "user"               TEXT,
     "password"           TEXT,
     "fromEmail"          TEXT NOT NULL,
-    "fromName"           TEXT NOT NULL DEFAULT 'QRForge',
+    "fromName"           TEXT NOT NULL DEFAULT 'BulkXQR',
     "rejectUnauthorized" BOOLEAN NOT NULL DEFAULT true,
     "isActive"           BOOLEAN NOT NULL DEFAULT true,
     "createdAt"          TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

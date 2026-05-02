@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Recipient email and QR content are required' }, { status: 400 });
     }
 
-    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'QRForge';
+    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'BulkXQR';
     const qrDataUrl = await generateQRDataURL({ content: qrContent, size: qrSize, color: qrColor, bgColor: qrBgColor });
     const html = buildCampaignEmailHTML(
       recipientName || '',

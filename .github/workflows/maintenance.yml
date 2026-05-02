@@ -37,7 +37,7 @@ jobs:
         run: |
           ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
             set -euxo pipefail
-            cd /var/www/qrforge
+            cd /var/www/BulkXQR
 
             if ! command -v psql >/dev/null 2>&1; then
               sudo DEBIAN_FRONTEND=noninteractive apt-get update -y

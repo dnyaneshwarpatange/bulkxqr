@@ -1,6 +1,6 @@
 @echo off
 echo ============================================
-echo   QRForge Local Development Setup
+echo   BulkXQR Local Development Setup
 echo ============================================
 echo.
 

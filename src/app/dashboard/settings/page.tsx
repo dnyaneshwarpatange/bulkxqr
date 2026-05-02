@@ -57,7 +57,7 @@ export default function SettingsPage() {
 
       const rzp = new window.Razorpay({
         key: orderData.keyId, amount: orderData.amount, currency: orderData.currency,
-        name: 'QRForge', description: `${orderData.planName} Plan — 1 Month`,
+        name: 'BulkXQR', description: `${orderData.planName} Plan — 1 Month`,
         order_id: orderData.orderId,
         handler: async (response: any) => {
           const vRes = await fetch('/api/payment/verify', {

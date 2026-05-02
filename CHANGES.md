@@ -1,4 +1,4 @@
-# QRForge — What Was Fixed
+# BulkXQR — What Was Fixed
 
 ## 🔴 Payment 401 Error (Authentication Failed)
 

@@ -1,5 +1,5 @@
 # ============================================================
-#  QRForge — Manual Rollback Workflow
+#  BulkXQR — Manual Rollback Workflow
 #  Trigger from: GitHub → Actions → Rollback → Run workflow
 #  Input: the SHA or run-id of the build you want to roll back to
 # ============================================================
@@ -19,8 +19,8 @@ on:
         type: string
 
 env:
-  APP_DIR: "/var/www/qrforge"
-  PM2_APP:  "qrforge"
+  APP_DIR: "/var/www/BulkXQR"
+  PM2_APP:  "BulkXQR"
   DEPLOY_USER: ${{ secrets.AZURE_VPS_USER }}
 
 jobs:

@@ -36,7 +36,7 @@ type SmtpConfig = {
 
 const DEFAULT_SMTP: SmtpConfig = {
   host: '', port: 587, secure: false, user: '', password: '',
-  fromEmail: '', fromName: 'QRForge', rejectUnauthorized: true, isActive: true,
+  fromEmail: '', fromName: 'BulkXQR', rejectUnauthorized: true, isActive: true,
 };
 
 const BLANK_COUPON = {
@@ -609,7 +609,7 @@ export default function AdminPage() {
                 <div>
                   <label className="block text-xs text-surface-400 mb-1">From Name</label>
                   <input value={smtpConfig.fromName} onChange={e => setSmtpConfig(s => ({ ...s, fromName: e.target.value }))}
-                    placeholder="QRForge" className="input-field text-sm" />
+                    placeholder="BulkXQR" className="input-field text-sm" />
                 </div>
               </div>
 

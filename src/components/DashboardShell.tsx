@@ -64,7 +64,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center">
               <span className="text-white text-xs font-bold">Q</span>
             </div>
-            <span className="font-bold text-white">QRForge</span>
+            <span className="font-bold text-white">BulkXQR</span>
           </div>
         </div>
 

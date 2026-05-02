@@ -75,7 +75,7 @@ jobs:
           echo "Preparing VPS directory..."
           for i in {1..5}; do
             echo "Attempt $i..."
-            if ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"; then
+            if ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" "sudo mkdir -p /var/www/BulkXQR && sudo chown \$USER:\$USER /var/www/BulkXQR"; then
               echo "✓ VPS directory prepared"
               exit 0
             fi
@@ -97,7 +97,7 @@ jobs:
               -e "ssh -i $HOME/.ssh/id_rsa" \
               --exclude='.git' \
               --exclude='.github' \
-              ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/"; then
+              ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/BulkXQR/"; then
               echo "✓ Code synced successfully"
               exit 0
             fi
@@ -131,7 +131,7 @@ jobs:
           echo "Step 2: Checking app dependencies..."
           ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" << 'STEP2'
           set -e
-          cd /var/www/qrforge
+          cd /var/www/BulkXQR
           
           if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
             echo "Installing dependencies with npm ci (this may take up to 5 minutes)..."
@@ -158,7 +158,7 @@ jobs:
           echo "Step 4: Running database migrations..."
           ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" << 'STEP4'
           set -e
-          cd /var/www/qrforge
+          cd /var/www/BulkXQR
           echo "Checking database..."
           npx prisma migrate deploy --skip-generate 2>&1 || {
             echo "Migrations completed or already up to date"
@@ -170,14 +170,14 @@ jobs:
           echo "Step 5: Starting application with PM2..."
           ssh -i "$HOME/.ssh/id_rsa" "$HOST_ADDR" << 'STEP5'
           set -e
-          cd /var/www/qrforge
+          cd /var/www/BulkXQR
           
-          if pm2 show qrforge >/dev/null 2>&1; then
+          if pm2 show BulkXQR >/dev/null 2>&1; then
             echo "Reloading existing PM2 app..."
-            pm2 reload qrforge --update-env
+            pm2 reload BulkXQR --update-env
           else
             echo "Starting new PM2 app instance..."
-            pm2 start npm --name qrforge -- start
+            pm2 start npm --name BulkXQR -- start
             pm2 save
             echo "Configuring PM2 to restart on boot..."
             sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
@@ -185,7 +185,7 @@ jobs:
           
           sleep 3
           echo "Application status:"
-          pm2 show qrforge | head -20 || true
+          pm2 show BulkXQR | head -20 || true
           echo "✅ App deployment complete"
           STEP5
 

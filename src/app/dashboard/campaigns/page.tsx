@@ -127,7 +127,7 @@ export default function CampaignsPage() {
     ]);
     ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 40 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Recipients');
-    XLSX.writeFile(wb, 'qrforge_campaign_template.xlsx');
+    XLSX.writeFile(wb, 'BulkXQR_campaign_template.xlsx');
   };
 
   const statusColor: Record<string, string> = {

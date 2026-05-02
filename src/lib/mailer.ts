@@ -57,7 +57,7 @@ async function getTransporter(): Promise<Transporter> {
 async function getFromAddress(): Promise<string> {
   const dbConfig = await getDbSmtpConfig();
   if (dbConfig) return `${dbConfig.fromName} <${dbConfig.fromEmail}>`;
-  return process.env.SMTP_FROM ?? 'QRForge <noreply@qrforge.app>';
+  return process.env.SMTP_FROM ?? 'BulkXQR <noreply@BulkXQR.app>';
 }
 
 export interface SendEmailOptions {

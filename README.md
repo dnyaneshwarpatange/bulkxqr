@@ -1,4 +1,4 @@
-# QRForge — Professional QR Code Platform
+# BulkXQR — Professional QR Code Platform
 
 ## Quick Start (Local Development)
 
@@ -43,7 +43,7 @@ npx prisma db push
 
 | Variable | Where to get it |
 |---|---|
-| `DATABASE_URL` | PostgreSQL URL: `postgresql://user:pass@localhost:5432/qrforge_db` |
+| `DATABASE_URL` | PostgreSQL URL: `postgresql://user:pass@localhost:5432/BulkXQR_db` |
 | `NEXTAUTH_SECRET` | Run: `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | `http://localhost:3000` (dev) or `https://yourdomain.com` (prod) |
 | `GOOGLE_CLIENT_ID` | console.cloud.google.com → Credentials |
@@ -55,7 +55,7 @@ npx prisma db push
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | Your email address |
 | `SMTP_PASS` | Gmail App Password (16 chars) |
-| `SMTP_FROM` | `QRForge <you@gmail.com>` |
+| `SMTP_FROM` | `BulkXQR <you@gmail.com>` |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` (dev) |
 
 ## Google OAuth Redirect URI

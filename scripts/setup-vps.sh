@@ -1,5 +1,5 @@
 #!/bin/bash
-# QRForge VPS Setup Script
+# BulkXQR VPS Setup Script
 # Run as root on a fresh Ubuntu 22.04 / 24.04 server
 # Usage: bash setup-vps.sh yourdomain.com your@email.com
 
@@ -7,9 +7,9 @@ set -e
 
 DOMAIN=${1:-"yourdomain.com"}
 EMAIL=${2:-"admin@yourdomain.com"}
-APP_DIR="/var/www/qrforge"
-DB_NAME="qrforge_db"
-DB_USER="qrforge_user"
+APP_DIR="/var/www/BulkXQR"
+DB_NAME="BulkXQR_db"
+DB_USER="BulkXQR_user"
 DB_PASS=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -17,7 +17,7 @@ log() { echo -e "${GREEN}[$(date +%H:%M:%S)]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 
-log "Starting QRForge VPS Setup for $DOMAIN"
+log "Starting BulkXQR VPS Setup for $DOMAIN"
 
 apt-get update -qq && apt-get upgrade -y -qq
 apt-get install -y -qq curl wget git ufw fail2ban nginx certbot python3-certbot-nginx build-essential
@@ -44,8 +44,8 @@ sudo -u postgres psql -c "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | g
 sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" 2>/dev/null || true
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 
-mkdir -p $APP_DIR /var/log/qrforge
-chown -R www-data:www-data $APP_DIR /var/log/qrforge
+mkdir -p $APP_DIR /var/log/BulkXQR
+chown -R www-data:www-data $APP_DIR /var/log/BulkXQR
 
 # Firewall
 ufw --force reset
@@ -66,7 +66,7 @@ F2B
 systemctl restart fail2ban
 
 # Nginx config
-cat > /etc/nginx/sites-available/qrforge << NGINX
+cat > /etc/nginx/sites-available/BulkXQR << NGINX
 server {
     listen 80;
     server_name ${DOMAIN} www.${DOMAIN};
@@ -88,7 +88,7 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/qrforge /etc/nginx/sites-enabled/qrforge
+ln -sf /etc/nginx/sites-available/BulkXQR /etc/nginx/sites-enabled/BulkXQR
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl restart nginx
 
@@ -109,14 +109,14 @@ SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER="REPLACE_WITH_EMAIL"
 SMTP_PASS="REPLACE_WITH_APP_PASSWORD"
-SMTP_FROM="QRForge <noreply@${DOMAIN}>"
+SMTP_FROM="BulkXQR <noreply@${DOMAIN}>"
 NEXT_PUBLIC_APP_URL="https://${DOMAIN}"
-NEXT_PUBLIC_APP_NAME="QRForge"
+NEXT_PUBLIC_APP_NAME="BulkXQR"
 ENV
 
 echo ""
 echo "╔══════════════════════════════════════════╗"
-echo "║   QRForge Server Setup Complete!  ✓      ║"
+echo "║   BulkXQR Server Setup Complete!  ✓      ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 echo "DB Name   : ${DB_NAME}"

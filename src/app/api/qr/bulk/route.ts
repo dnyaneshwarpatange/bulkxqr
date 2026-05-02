@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const batchId = uuidv4();
     const zip = new JSZip();
     const results: Array<{ label: string; content: string; email?: string; buffer: Buffer; qrDataUrl: string }> = [];
-    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'QRForge';
+    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'BulkXQR';
 
     for (const item of items) {
       const content = String(item.content || item.url || item.text || item.value || item).trim();

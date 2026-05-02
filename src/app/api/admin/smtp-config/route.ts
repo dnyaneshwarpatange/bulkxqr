@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       user: user || null,
       password: password && !password.includes('•') ? password : undefined,
       fromEmail,
-      fromName: fromName || 'QRForge',
+      fromName: fromName || 'BulkXQR',
       rejectUnauthorized: rejectUnauthorized !== false,
       isActive: isActive !== false,
     },

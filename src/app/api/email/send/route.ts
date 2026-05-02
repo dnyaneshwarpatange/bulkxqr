@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'sending' } });
 
     let sentCount = 0, failedCount = 0;
-    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'QRForge';
+    const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'BulkXQR';
 
     for (const emailRecord of campaign.emails) {
       try {

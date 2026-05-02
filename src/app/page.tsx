@@ -59,7 +59,7 @@ export default function LandingPage() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center">
               <QrCode size={18} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-white">QRForge</span>
+            <span className="text-xl font-bold text-white">BulkXQR</span>
           </div>
           <button onClick={handleLogin} disabled={loading}
             className="btn-primary text-sm">
@@ -107,7 +107,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto mt-20 relative">
           <div className="bg-surface-800 border border-surface-700 rounded-3xl p-8 shadow-2xl">
             <div className="grid grid-cols-3 gap-4">
-              {['https://qrforge.app', 'contact@business.com', 'Event Ticket #001'].map((text, i) => (
+              {['https://BulkXQR.app', 'contact@business.com', 'Event Ticket #001'].map((text, i) => (
                 <div key={i} className="bg-surface-900 rounded-2xl p-4 text-center">
                   <div className="w-24 h-24 mx-auto bg-white rounded-xl flex items-center justify-center mb-3">
                     <QrCode size={60} className="text-surface-900" />
@@ -190,9 +190,9 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center">
               <QrCode size={16} className="text-white" />
             </div>
-            <span className="font-bold text-white">QRForge</span>
+            <span className="font-bold text-white">BulkXQR</span>
           </div>
-          <p className="text-surface-500 text-sm">© 2024 QRForge. Professional QR Code Platform.</p>
+          <p className="text-surface-500 text-sm">© 2024 BulkXQR. Professional QR Code Platform.</p>
         </div>
       </footer>
     </div>

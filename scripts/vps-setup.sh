@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-#  QRForge — Azure VPS First-Time Setup Script
+#  BulkXQR — Azure VPS First-Time Setup Script
 #  Run once as root on a fresh Ubuntu 22.04 / 24.04 VM:
-#    curl -fsSL https://raw.githubusercontent.com/YOUR/qrforge/main/scripts/vps-setup.sh | sudo bash
+#    curl -fsSL https://raw.githubusercontent.com/YOUR/BulkXQR/main/scripts/vps-setup.sh | sudo bash
 # ============================================================
 set -euo pipefail
 
 APP_USER="azureuser"        # change if your VM user differs
-APP_DIR="/var/www/qrforge"
-STAGING_DIR="/var/www/qrforge-staging"
+APP_DIR="/var/www/BulkXQR"
+STAGING_DIR="/var/www/BulkXQR-staging"
 NODE_VERSION="20"
 DOMAIN="yourdomain.com"     # ← replace with your domain
 
@@ -57,7 +57,7 @@ chown -R "$APP_USER":"$APP_USER" "$APP_DIR" "$STAGING_DIR"
 
 # ── 5. Nginx ──────────────────────────────────────────────────
 log "Configuring Nginx..."
-cat > /etc/nginx/sites-available/qrforge << NGINX_EOF
+cat > /etc/nginx/sites-available/BulkXQR << NGINX_EOF
 # Redirect HTTP → HTTPS
 server {
     listen 80;
@@ -137,7 +137,7 @@ server {
 }
 NGINX_EOF
 
-ln -sfn /etc/nginx/sites-available/qrforge /etc/nginx/sites-enabled/qrforge
+ln -sfn /etc/nginx/sites-available/BulkXQR /etc/nginx/sites-enabled/BulkXQR
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl reload nginx
@@ -174,31 +174,31 @@ cat > "$APP_DIR/ecosystem.config.js" << PM2_EOF
 module.exports = {
   apps: [
     {
-      name: 'qrforge',
+      name: 'BulkXQR',
       script: 'node_modules/.bin/next',
       args: 'start',
-      cwd: '/var/www/qrforge',
+      cwd: '/var/www/BulkXQR',
       instances: 'max',       // one per CPU core
       exec_mode: 'cluster',
       max_memory_restart: '512M',
-      env_file: '/var/www/qrforge/.env.production',
+      env_file: '/var/www/BulkXQR/.env.production',
       env: { NODE_ENV: 'production', PORT: 3000 },
-      error_file: '/var/log/pm2/qrforge-error.log',
-      out_file:   '/var/log/pm2/qrforge-out.log',
+      error_file: '/var/log/pm2/BulkXQR-error.log',
+      out_file:   '/var/log/pm2/BulkXQR-out.log',
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      name: 'qrforge-staging',
+      name: 'BulkXQR-staging',
       script: 'node_modules/.bin/next',
       args: 'start',
-      cwd: '/var/www/qrforge-staging',
+      cwd: '/var/www/BulkXQR-staging',
       instances: 1,
       max_memory_restart: '256M',
-      env_file: '/var/www/qrforge-staging/.env.production',
+      env_file: '/var/www/BulkXQR-staging/.env.production',
       env: { NODE_ENV: 'production', PORT: 3001 },
-      error_file: '/var/log/pm2/qrforge-staging-error.log',
-      out_file:   '/var/log/pm2/qrforge-staging-out.log',
+      error_file: '/var/log/pm2/BulkXQR-staging-error.log',
+      out_file:   '/var/log/pm2/BulkXQR-staging-out.log',
     },
   ],
 };

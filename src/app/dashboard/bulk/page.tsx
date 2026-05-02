@@ -170,7 +170,7 @@ export default function BulkPage() {
     ]);
     ws['!cols'] = [{ wch: 25 }, { wch: 45 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, ws, 'QR Data');
-    XLSX.writeFile(wb, 'qrforge_template.xlsx');
+    XLSX.writeFile(wb, 'BulkXQR_template.xlsx');
   };
 
   const addItem = () => setItems(prev => [...prev, { content: '', label: '', email: '' }]);

@@ -153,7 +153,7 @@ model SmtpConfig {
   user               String?
   password           String?
   fromEmail          String
-  fromName           String   @default("QRForge")
+  fromName           String   @default("BulkXQR")
   rejectUnauthorized Boolean  @default(true)
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())

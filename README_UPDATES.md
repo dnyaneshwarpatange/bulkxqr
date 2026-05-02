@@ -1,4 +1,4 @@
-# QRForge v2 - Major Updates
+# BulkXQR v2 - Major Updates
 
 ## 🎯 What's New
 

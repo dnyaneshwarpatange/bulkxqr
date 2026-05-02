@@ -32,7 +32,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-500/30">
             <QrCode size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome to QRForge</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome to BulkXQR</h1>
           <p className="text-surface-400 mb-8 leading-relaxed">
             The professional platform for generating, managing, and sending QR codes at scale.
           </p>

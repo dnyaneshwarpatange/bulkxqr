@@ -1,4 +1,4 @@
-# QRForge — Azure VPS Deployment Guide
+# BulkXQR — Azure VPS Deployment Guide
 
 ## Architecture
 
@@ -23,7 +23,7 @@ Azure Virtual Machine (Ubuntu 22.04)
 
 ## 1. Provision Azure VM
 
-Recommended spec for a production QRForge instance:
+Recommended spec for a production BulkXQR instance:
 
 | Resource | Recommendation |
 |----------|---------------|
@@ -36,8 +36,8 @@ Recommended spec for a production QRForge instance:
 ```bash
 # Azure CLI — create VM
 az vm create \
-  --resource-group qrforge-rg \
-  --name qrforge-vm \
+  --resource-group BulkXQR-rg \
+  --name BulkXQR-vm \
   --image Ubuntu2204 \
   --size Standard_B2s \
   --admin-username azureuser \
@@ -46,8 +46,8 @@ az vm create \
   --output table
 
 # Open ports
-az vm open-port --resource-group qrforge-rg --name qrforge-vm --port 80 --priority 100
-az vm open-port --resource-group qrforge-rg --name qrforge-vm --port 443 --priority 110
+az vm open-port --resource-group BulkXQR-rg --name BulkXQR-vm --port 80 --priority 100
+az vm open-port --resource-group BulkXQR-rg --name BulkXQR-vm --port 443 --priority 110
 ```
 
 ---
@@ -81,9 +81,9 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com -d staging.yourdoma
 
 ```bash
 az postgres flexible-server create \
-  --resource-group qrforge-rg \
-  --name qrforge-db \
-  --admin-user qrforgeadmin \
+  --resource-group BulkXQR-rg \
+  --name BulkXQR-db \
+  --admin-user BulkXQRadmin \
   --admin-password "YourStrongPassword123!" \
   --sku-name Standard_B1ms \
   --tier Burstable \
@@ -97,9 +97,9 @@ Copy the connection string for the `DATABASE_URL` secret.
 
 ```bash
 sudo apt-get install -y postgresql postgresql-contrib
-sudo -u postgres psql -c "CREATE USER qrforge WITH PASSWORD 'yourpassword';"
-sudo -u postgres psql -c "CREATE DATABASE qrforge OWNER qrforge;"
-# DATABASE_URL=postgresql://qrforge:yourpassword@localhost:5432/qrforge
+sudo -u postgres psql -c "CREATE USER BulkXQR WITH PASSWORD 'yourpassword';"
+sudo -u postgres psql -c "CREATE DATABASE BulkXQR OWNER BulkXQR;"
+# DATABASE_URL=postgresql://BulkXQR:yourpassword@localhost:5432/BulkXQR
 ```
 
 ---
@@ -123,7 +123,7 @@ Go to: **GitHub repo → Settings → Secrets and variables → Actions → New 
 | `GOOGLE_CLIENT_SECRET` | Google OAuth secret | `GOCSPX-...` |
 | `RAZORPAY_KEY_ID` | Razorpay key ID | `rzp_live_...` |
 | `RAZORPAY_KEY_SECRET` | Razorpay secret | `...` |
-| `NEXT_PUBLIC_APP_NAME` | App name shown in UI | `QRForge` |
+| `NEXT_PUBLIC_APP_NAME` | App name shown in UI | `BulkXQR` |
 | `NEXT_PUBLIC_APP_URL` | Public URL | `https://yourdomain.com` |
 
 ### Optional Secrets
@@ -140,13 +140,13 @@ Go to: **GitHub repo → Settings → Secrets and variables → Actions → New 
 
 ```bash
 # On your local machine
-ssh-keygen -t ed25519 -C "github-actions-qrforge" -f ~/.ssh/qrforge_deploy
+ssh-keygen -t ed25519 -C "github-actions-BulkXQR" -f ~/.ssh/BulkXQR_deploy
 
 # Add PUBLIC key to the VM
-ssh azureuser@<VM_IP> "echo '$(cat ~/.ssh/qrforge_deploy.pub)' >> ~/.ssh/authorized_keys"
+ssh azureuser@<VM_IP> "echo '$(cat ~/.ssh/BulkXQR_deploy.pub)' >> ~/.ssh/authorized_keys"
 
 # Add PRIVATE key content to GitHub secret AZURE_VPS_SSH_KEY
-cat ~/.ssh/qrforge_deploy
+cat ~/.ssh/BulkXQR_deploy
 ```
 
 ---
@@ -204,7 +204,7 @@ git push origin main
       ├── npm ci --omit=dev
       ├── prisma generate
       ├── prisma migrate deploy   ← zero-downtime schema migrations
-      ├── pm2 reload qrforge      ← graceful reload, no downtime
+      ├── pm2 reload BulkXQR      ← graceful reload, no downtime
       └── health check /api/health
 ```
 
@@ -221,12 +221,12 @@ pm2 status
 pm2 monit                    # live dashboard
 
 # View logs
-pm2 logs qrforge             # live tail
-pm2 logs qrforge --lines 200 # last 200 lines
+pm2 logs BulkXQR             # live tail
+pm2 logs BulkXQR --lines 200 # last 200 lines
 
 # Restart / reload
-pm2 reload qrforge           # graceful zero-downtime reload
-pm2 restart qrforge          # hard restart
+pm2 reload BulkXQR           # graceful zero-downtime reload
+pm2 restart BulkXQR          # hard restart
 
 # Check Nginx
 sudo nginx -t
@@ -239,8 +239,8 @@ sudo certbot certificates
 df -h
 
 # App directory
-ls -la /var/www/qrforge/
-cat /var/www/qrforge/.env.production   # check env vars
+ls -la /var/www/BulkXQR/
+cat /var/www/BulkXQR/.env.production   # check env vars
 ```
 
 ---
@@ -270,13 +270,13 @@ PM2 natively exposes metrics. For production, consider:
 ```bash
 # Set up Azure Monitor alert for CPU > 80%
 az monitor metrics alert create \
-  --name "qrforge-high-cpu" \
-  --resource-group qrforge-rg \
-  --scopes $(az vm show -g qrforge-rg -n qrforge-vm --query id -o tsv) \
+  --name "BulkXQR-high-cpu" \
+  --resource-group BulkXQR-rg \
+  --scopes $(az vm show -g BulkXQR-rg -n BulkXQR-vm --query id -o tsv) \
   --condition "avg Percentage CPU > 80" \
   --window-size 5m \
   --evaluation-frequency 1m \
-  --action $(az monitor action-group show -g qrforge-rg -n emailAlerts --query id -o tsv)
+  --action $(az monitor action-group show -g BulkXQR-rg -n emailAlerts --query id -o tsv)
 ```
 
 ---
@@ -285,8 +285,8 @@ az monitor metrics alert create \
 
 | Problem | Fix |
 |---------|-----|
-| `pm2 show qrforge` shows errored | `pm2 logs qrforge --err` to see the error |
-| 502 Bad Gateway in Nginx | App crashed — `pm2 restart qrforge` |
+| `pm2 show BulkXQR` shows errored | `pm2 logs BulkXQR --err` to see the error |
+| 502 Bad Gateway in Nginx | App crashed — `pm2 restart BulkXQR` |
 | DB connection refused | Check `DATABASE_URL` in `.env.production` |
 | Build fails on GitHub | Check Actions tab for error, fix and push |
 | SSL expired | `sudo certbot renew` (auto-renews via cron) |

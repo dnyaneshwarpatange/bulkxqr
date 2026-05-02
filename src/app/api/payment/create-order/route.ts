@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     const planDetails = PLANS[plan as PlanName];
     const amount = planDetails.priceINR;
-    const receipt = `qrforge_${userId.substring(0, 8)}_${uuidv4().substring(0, 8)}`;
+    const receipt = `BulkXQR_${userId.substring(0, 8)}_${uuidv4().substring(0, 8)}`;
 
     const order = await createOrder(amount, 'INR', receipt);
 
