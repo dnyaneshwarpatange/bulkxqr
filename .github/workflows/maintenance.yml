@@ -25,15 +25,17 @@ jobs:
 
     steps:
       - name: Setup SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> ~/.ssh/known_hosts
+          set -euxo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
+          chmod 600 "$HOME/.ssh/id_rsa"
+          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> "$HOME/.ssh/known_hosts"
 
       - name: Run cleanup on VPS
         run: |
-          ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
             set -euxo pipefail
             cd /var/www/qrforge
 

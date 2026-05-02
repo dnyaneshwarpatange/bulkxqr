@@ -43,28 +43,30 @@ jobs:
           npm run build
 
       - name: Setup SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> ~/.ssh/known_hosts
+          set -euxo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
+          chmod 600 "$HOME/.ssh/id_rsa"
+          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> "$HOME/.ssh/known_hosts"
 
       - name: Prepare VPS directory
         run: |
-          ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" \
+          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" \
             "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"
 
-      - name: Sync built app (no install on VPS)
+      - name: Sync built app to VPS
         run: |
           rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes" \
+            -e "ssh -i $HOME/.ssh/id_rsa -o StrictHostKeyChecking=yes" \
             --exclude='.git' \
             --exclude='.github' \
             ./ "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/"
 
       - name: Start app on VPS
         run: |
-          ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
             set -euxo pipefail
             cd /var/www/qrforge
 
@@ -85,7 +87,7 @@ jobs:
 
       - name: Open port 80 → 3000
         run: |
-          ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
+          ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
             set -euxo pipefail
 
             if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
