@@ -21,7 +21,7 @@ echo "[2/4] Installing dependencies..."
 npm install
 
 echo "[3/4] Setting up database..."
-npx prisma generate
+./node_modules/.bin/prisma generate
 npx prisma db push
 
 echo "[4/4] Starting development server..."

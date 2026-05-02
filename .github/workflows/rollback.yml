@@ -79,7 +79,7 @@ jobs:
             set -e
             cd ${{ env.APP_DIR }}
             NODE_ENV=production npm ci --omit=dev --legacy-peer-deps
-            npx prisma generate
+            ./node_modules/.bin/prisma generate
             pm2 reload ${{ env.PM2_APP }} --update-env
             echo "✅ Rollback complete"
           REMOTE_EOF

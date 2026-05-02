@@ -23,7 +23,7 @@ cp .env.example .env
 npm install
 
 # 4. Generate Prisma client + push DB schema  ← REQUIRED before first run
-npx prisma generate
+./node_modules/.bin/prisma generate
 npx prisma db push
 
 # 5. Start dev server

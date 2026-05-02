@@ -26,7 +26,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [3/4] Setting up database (pushing Prisma schema)...
-call npx prisma generate
+call ./node_modules/.bin/prisma generate
 call npx prisma db push
 if %errorlevel% neq 0 (
     echo ERROR: Database setup failed. Check your DATABASE_URL in .env
