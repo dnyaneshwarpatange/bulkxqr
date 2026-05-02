@@ -1,0 +1,93 @@
+# ============================================================
+#  QRForge — Manual Rollback Workflow
+#  Trigger from: GitHub → Actions → Rollback → Run workflow
+#  Input: the SHA or run-id of the build you want to roll back to
+# ============================================================
+
+name: 🔙 Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: "GitHub Actions run ID to roll back to (find in Actions tab)"
+        required: true
+        type: string
+      confirm:
+        description: "Type ROLLBACK to confirm"
+        required: true
+        type: string
+
+env:
+  APP_DIR: "/var/www/qrforge"
+  PM2_APP:  "qrforge"
+  DEPLOY_USER: ${{ secrets.AZURE_VPS_USER }}
+
+jobs:
+  rollback:
+    name: 🔙 Rollback to run ${{ inputs.artifact_run_id }}
+    runs-on: ubuntu-latest
+    if: inputs.confirm == 'ROLLBACK'
+    environment: production
+
+    steps:
+      - name: Download artefact from previous run
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build-${{ github.sha }}
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write .env file
+        run: |
+          cat > .env.production << ENVEOF
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+          NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}
+          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NODE_ENV=production
+          ENVEOF
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AZURE_VPS_SSH_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          ssh-keyscan -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
+            -H ${{ secrets.AZURE_VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync rolled-back build to VPS
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${{ secrets.AZURE_VPS_PORT || 22 }}" \
+            .next/ public/ prisma/ package.json package-lock.json \
+            next.config.* .env.production \
+            ${{ env.DEPLOY_USER }}@${{ secrets.AZURE_VPS_HOST }}:${{ env.APP_DIR }}/
+
+      - name: Restart on VPS
+        run: |
+          ssh -p ${{ secrets.AZURE_VPS_PORT || 22 }} \
+            ${{ env.DEPLOY_USER }}@${{ secrets.AZURE_VPS_HOST }} \
+            'bash -s' << 'REMOTE_EOF'
+            set -e
+            cd ${{ env.APP_DIR }}
+            NODE_ENV=production npm ci --omit=dev --legacy-peer-deps
+            npx prisma generate
+            pm2 reload ${{ env.PM2_APP }} --update-env
+            echo "✅ Rollback complete"
+          REMOTE_EOF
+
+      - name: Health check
+        run: |
+          sleep 10
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            --max-time 20 "${{ secrets.NEXTAUTH_URL }}/api/health" || echo "000")
+          echo "Health: $STATUS"
+          [ "$STATUS" = "200" ] && echo "✅ Rollback healthy" || echo "⚠️ Check VPS logs"
