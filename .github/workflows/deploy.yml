@@ -18,9 +18,11 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install & build
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma client & build
         run: |
-          npm ci --legacy-peer-deps
           ./node_modules/.bin/prisma generate
           npm run build
         env:
@@ -33,7 +35,7 @@ jobs:
 
       - name: Write .env for VPS
         run: |
-          cat > .env.production << EOF2
+          cat > .env.production << ENVEOF
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
           NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}
@@ -45,7 +47,7 @@ jobs:
           NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}
           NODE_ENV=production
           PORT=3000
-          EOF2
+          ENVEOF
 
       - name: Setup SSH
         run: |
@@ -66,7 +68,7 @@ jobs:
             --exclude='node_modules' \
             ./ ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}:/var/www/qrforge/
 
-      - name: Install runtime deps & start app
+      - name: Install & start on VPS
         run: |
           ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
             set -e
@@ -83,13 +85,13 @@ jobs:
               sudo npm install -g pm2
             fi
 
-            # Install only production dependencies (build already done on runner)
-            npm ci --omit=dev --legacy-peer-deps
+            # Install all deps including devDeps so prisma binary exists
+            npm ci --legacy-peer-deps
 
-            # Run DB migrations
+            # Run migrations with local prisma binary
             ./node_modules/.bin/prisma generate
             ./node_modules/.bin/prisma migrate deploy
-            
+
             # Start or reload PM2
             if pm2 show qrforge > /dev/null 2>&1; then
               pm2 reload qrforge --update-env
@@ -105,13 +107,11 @@ jobs:
       - name: Open port 80 → 3000
         run: |
           ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
-            # Forward port 80 to 3000 (persists across reboots via iptables-persistent)
             if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
               sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
               sudo iptables -t nat -A OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 3000
-              # Save rules so they survive reboot
               sudo apt-get install -y -qq iptables-persistent
               sudo netfilter-persistent save
             fi
-            echo "✅ http://${{ secrets.AZURE_VPS_HOST }} → localhost:3000"
+            echo "✅ Port 80 → 3000 active"
           ENDSSH
