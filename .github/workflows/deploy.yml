@@ -21,7 +21,7 @@ jobs:
       - name: Install & build
         run: |
           npm ci --legacy-peer-deps
-          npx prisma generate
+          ./node_modules/.bin/prisma generate
           npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -87,9 +87,9 @@ jobs:
             npm ci --omit=dev --legacy-peer-deps
 
             # Run DB migrations
-            npx prisma generate
-            npx prisma migrate deploy
-
+            ./node_modules/.bin/prisma generate
+            ./node_modules/.bin/prisma migrate deploy
+            
             # Start or reload PM2
             if pm2 show qrforge > /dev/null 2>&1; then
               pm2 reload qrforge --update-env
