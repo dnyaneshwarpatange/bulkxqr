@@ -2,7 +2,7 @@ name: Deploy to Azure VPS
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Generate Prisma client & build
         run: |
-          npx prisma generate
+          ./node_modules/.bin/prisma generate
           npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -35,17 +35,20 @@ jobs:
 
       - name: Write .env for VPS
         run: |
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-    echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env
-    echo "NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}" >> .env
-    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
-    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-    echo "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" >> .env
-    echo "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >> .env
-    echo "NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}" >> .env
-    echo "NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}" >> .env
-    echo "NODE_ENV=production" >> .env
-    echo "PORT=3000" >> .env
+          # No indentation inside heredoc — every line must start at column 0
+          cat > .env << ENVEOF
+DATABASE_URL=${{ secrets.DATABASE_URL }}
+NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}
+GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}
+NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}
+NODE_ENV=production
+PORT=3000
+ENVEOF
 
       - name: Setup SSH
         run: |
@@ -57,7 +60,7 @@ jobs:
       - name: Prepare VPS directory
         run: |
           ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} \
-          "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"
+            "sudo mkdir -p /var/www/qrforge && sudo chown \$USER:\$USER /var/www/qrforge"
 
       - name: Sync code to VPS
         run: |
@@ -69,42 +72,47 @@ jobs:
       - name: Install & start on VPS
         run: |
           ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
-set -e
-cd /var/www/qrforge
+            set -e
+            cd /var/www/qrforge
 
-if ! command -v node >/dev/null; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt-get install -y nodejs
-fi
+            # Install Node 20 if missing
+            if ! command -v node &>/dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
 
-if ! command -v pm2 >/dev/null; then
-  sudo npm install -g pm2
-fi
+            # Install PM2 if missing
+            if ! command -v pm2 &>/dev/null; then
+              sudo npm install -g pm2
+            fi
 
-npm ci --legacy-peer-deps
+            # Install all deps (including devDeps for prisma binary)
+            npm ci --legacy-peer-deps
 
-npx prisma generate
-npx prisma migrate deploy
+            # Run DB migrations — .env is already in place from rsync
+            ./node_modules/.bin/prisma generate
+            ./node_modules/.bin/prisma migrate deploy
 
-if pm2 show qrforge >/dev/null 2>&1; then
-  pm2 reload qrforge --update-env
-else
-  pm2 start npm --name qrforge -- start
-  pm2 save
-  sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
-fi
+            # Start or reload PM2
+            if pm2 show qrforge > /dev/null 2>&1; then
+              pm2 reload qrforge --update-env
+            else
+              pm2 start npm --name qrforge -- start
+              pm2 save
+              sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME | tail -1 | sudo bash || true
+            fi
 
-echo "App is running"
-ENDSSH
+            echo "✅ App is running"
+          ENDSSH
 
       - name: Open port 80 → 3000
         run: |
           ssh ${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }} << 'ENDSSH'
-if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
-  sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
-  sudo iptables -t nat -A OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 3000
-  sudo apt-get install -y -qq iptables-persistent
-  sudo netfilter-persistent save
-fi
-echo "Port 80 → 3000 active"
-ENDSSH
+            if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null; then
+              sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
+              sudo iptables -t nat -A OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 3000
+              sudo apt-get install -y -qq iptables-persistent
+              sudo netfilter-persistent save
+            fi
+            echo "✅ Port 80 → 3000 active"
+          ENDSSH
