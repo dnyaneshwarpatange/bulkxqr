@@ -17,7 +17,6 @@ on:
 
 jobs:
   db-cleanup:
-    name: Cleanup Stale Records
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'schedule' ||
@@ -35,49 +34,42 @@ jobs:
       - name: Run cleanup on VPS
         run: |
           ssh -i ~/.ssh/id_rsa "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" << 'ENDSSH'
-            set -euo pipefail
+            set -euxo pipefail
             cd /var/www/qrforge
 
             if ! command -v psql >/dev/null 2>&1; then
-              sudo apt-get update -y
-              sudo apt-get install -y postgresql-client
-            fi
-
-            if [ ! -f .env ]; then
-              echo ".env not found" >&2
-              exit 1
+              sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-client
             fi
 
             set -a
             . ./.env
             set +a
 
-            echo "=== Deleting QR codes older than 90 days for free users ==="
+            echo "Cleaning old QR codes..."
             psql "$DATABASE_URL" -c "
               DELETE FROM \"QRCode\"
               WHERE \"createdAt\" < NOW() - INTERVAL '90 days'
-                AND \"userId\" IN (
-                  SELECT \"userId\" FROM \"Subscription\" WHERE plan = 'free'
-                );
+              AND \"userId\" IN (
+                SELECT \"userId\" FROM \"Subscription\" WHERE plan = 'free'
+              );
             "
 
-            echo "=== Expiring old coupons ==="
+            echo "Expiring coupons..."
             psql "$DATABASE_URL" -c "
               UPDATE \"DiscountCoupon\"
               SET \"isActive\" = false
-              WHERE \"expiresAt\" IS NOT NULL
-                AND \"expiresAt\" < NOW()
-                AND \"isActive\" = true;
+              WHERE \"expiresAt\" < NOW()
+              AND \"isActive\" = true;
             "
 
-            echo "✅ Cleanup complete"
+            echo "✅ Done"
           ENDSSH
 
   dep-audit:
-    name: Dependency Audit
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' &&
        (inputs.task == 'dep-audit' || inputs.task == 'all'))
 
@@ -93,8 +85,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
+        run: npm audit --audit-level=high || true
 
-      - name: Check outdated
+      - name: Outdated
         run: npm outdated || true
