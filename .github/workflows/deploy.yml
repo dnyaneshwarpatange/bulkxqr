@@ -35,19 +35,20 @@ jobs:
 
       - name: Write .env for VPS
         run: |
-          cat > .env.production << ENVEOF
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-          NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
-          NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}
-          NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}
-          NODE_ENV=production
-          PORT=3000
-          ENVEOF
+          # No indentation inside heredoc — every line must start at column 0
+          cat > .env << ENVEOF
+DATABASE_URL=${{ secrets.DATABASE_URL }}
+NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+NEXTAUTH_URL=http://${{ secrets.AZURE_VPS_HOST }}
+GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+NEXT_PUBLIC_APP_NAME=${{ secrets.NEXT_PUBLIC_APP_NAME }}
+NEXT_PUBLIC_APP_URL=http://${{ secrets.AZURE_VPS_HOST }}
+NODE_ENV=production
+PORT=3000
+ENVEOF
 
       - name: Setup SSH
         run: |
@@ -85,10 +86,10 @@ jobs:
               sudo npm install -g pm2
             fi
 
-            # Install all deps including devDeps so prisma binary exists
+            # Install all deps (including devDeps for prisma binary)
             npm ci --legacy-peer-deps
 
-            # Run migrations with local prisma binary
+            # Run DB migrations — .env is already in place from rsync
             ./node_modules/.bin/prisma generate
             ./node_modules/.bin/prisma migrate deploy
 
