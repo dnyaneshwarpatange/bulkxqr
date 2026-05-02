@@ -43,14 +43,27 @@ jobs:
           npm run build
 
       - name: Setup SSH
-        shell: bash
-        run: |
-          set -euxo pipefail
-          install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
-          chmod 600 "$HOME/.ssh/id_rsa"
-          ssh-keyscan -H "${{ secrets.AZURE_VPS_HOST }}" >> "$HOME/.ssh/known_hosts"
+  shell: bash
+  run: |
+    set -euxo pipefail
 
+    install -d -m 700 "$HOME/.ssh"
+    printf '%s\n' "${{ secrets.AZURE_VPS_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
+    chmod 600 "$HOME/.ssh/id_rsa"
+
+    HOST="${{ secrets.AZURE_VPS_HOST }}"
+
+    echo "Resolving host..."
+    getent ahostsv4 "$HOST"
+
+    echo "Fetching SSH host key..."
+    for i in 1 2 3; do
+      if ssh-keyscan -4 -T 20 -t ed25519,rsa -H "$HOST" >> "$HOME/.ssh/known_hosts"; then
+        break
+      fi
+      echo "ssh-keyscan attempt $i failed, retrying..."
+      sleep 3
+    done
       - name: Prepare VPS directory
         run: |
           ssh -i "$HOME/.ssh/id_rsa" "${{ secrets.AZURE_VPS_USER }}@${{ secrets.AZURE_VPS_HOST }}" \
